@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:int="http://www.springframework.org/schema/integration"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:int-http="http://www.springframework.org/schema/integration/http"
+       xmlns:int-stream="http://www.springframework.org/schema/integration/stream"
+       xsi:schemaLocation="
+        http://www.springframework.org/schema/integration/stream http://www.springframework.org/schema/integration/stream/spring-integration-stream.xsd
+        http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/integration http://www.springframework.org/schema/integration/spring-integration.xsd
+        http://www.springframework.org/schema/integration/http http://www.springframework.org/schema/integration/http/spring-integration-http.xsd
+        ">
+
+    <int:channel id="addNoteChannel"/>
+    <int:channel id="editNoteChannel"/>
+    <int:channel id="deleteNoteChannel"/>
+    <int:channel id="listAllNotesChannel"/>
+
+    <int:channel id="createUserChannel"/>
+    <int:channel id="deleteUserChannel"/>
+    <int:channel id="validateUserChannel"/>
+    <int:channel id="listAllUserChannel"/>
+
+    <int:channel id="replyChannel"/>
+
+    <int-stream:stdout-channel-adapter id="replyAdapter" channel="replyChannel" append-newline="true"/>
+
+    <int:gateway id="Gateway" service-interface="gateway.Gateway">
+        <int:method name="addNote" request-channel="addNoteChannel"/>
+        <int:method name="deleteNote" request-channel="deleteNoteChannel"/>
+        <int:method name="editNote" request-channel="editNoteChannel"/>
+        <int:method name="listAllNotes" request-channel="listAllNotesChannel" request-timeout="1000"/>
+
+        <int:method name="createUser" request-channel="createUserChannel"/>
+        <int:method name="deleteUser" request-channel="deleteUserChannel"/>
+        <int:method name="validateUser" request-channel="validateUserChannel"/>
+        <int:method name="listAllUser" request-channel="listAllUserChannel" request-timeout="1000"/>
+    </int:gateway>
+
+    <int-http:outbound-gateway request-channel="addNoteChannel"
+                               url="http://localhost:80/add?notename={notename}&amp;content={content}&amp;date={date}"
+                               http-method="GET"
+                               reply-channel="replyChannel">
+
+        <int-http:uri-variable name="notename" expression="payload.getName()"/>
+        <int-http:uri-variable name="content" expression="payload.getContent()"/>
+        <int-http:uri-variable name="date" expression="(new java.text.SimpleDateFormat('yyyy.MM.dd HH:mm'))
+            .format(payload.getDate())"/>
+    </int-http:outbound-gateway>
+
+    <int-http:outbound-gateway request-channel="deleteNoteChannel"
+                               url="http://localhost:80/delete?notename={notename}"
+                               http-method="GET"
+                               reply-channel="replyChannel">
+
+        <int-http:uri-variable name="notename" expression="payload"/>
+    </int-http:outbound-gateway>
+
+    <int-http:outbound-gateway request-channel="editNoteChannel"
+                               url="http://localhost:80/edit?notename={notename}&amp;content={content}"
+                               http-method="GET"
+                               reply-channel="replyChannel">
+
+        <int-http:uri-variable name="notename" expression="payload[0]"/>
+        <int-http:uri-variable name="content" expression="payload[1]"/>
+    </int-http:outbound-gateway>
+
+    <int-http:outbound-gateway request-channel="listAllNotesChannel"
+                               url="http://localhost:80/all"
+                               http-method="GET"
+                               expected-response-type="app.Note[]">
+    </int-http:outbound-gateway>
+
+    <!-- login services -->
+
+    <int-http:outbound-gateway request-channel="createUserChannel"
+                               url="http://localhost:81/login/createuser?username={username}&amp;password={password}"
+                               http-method="GET"
+                               reply-channel="replyChannel">
+
+        <int-http:uri-variable name="username" expression="payload[0]"/>
+        <int-http:uri-variable name="password" expression="payload[1]"/>
+    </int-http:outbound-gateway>
+
+    <int-http:outbound-gateway request-channel="deleteUserChannel"
+                               url="http://localhost:81/login/deleteuser?username={username}"
+                               http-method="GET"
+                               reply-channel="replyChannel">
+
+        <int-http:uri-variable name="username" expression="payload"/>
+    </int-http:outbound-gateway>
+
+    <int-http:outbound-gateway request-channel="validateUserChannel"
+                               url="http://localhost:81/login/validateuser?username={username}&amp;password={password}"
+                               http-method="GET"
+                               expected-response-type="java.lang.Boolean">
+
+        <int-http:uri-variable name="username" expression="payload[0]"/>
+        <int-http:uri-variable name="password" expression="payload[1]"/>
+    </int-http:outbound-gateway>
+
+    <int-http:outbound-gateway request-channel="listAllUserChannel"
+                               url="http://localhost:81/login/all"
+                               http-method="GET"
+                               expected-response-type="app.User[]">
+    </int-http:outbound-gateway>
+</beans>
